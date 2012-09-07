@@ -11,8 +11,12 @@ Mapstraction: {
 			wrapAround180: true
 		});
 
-		var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer");
-		map.addLayer(basemap);
+        dojo.connect("map", "onLoad",function() {
+            var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer");
+            m.addLayer(basemap);
+
+        });
+
 
 		// map.addEventListener('moveend', function(){
 		// 	me.endPan.fire();
@@ -86,15 +90,14 @@ Mapstraction: {
 	setCenterAndZoom: function(point, zoom) { 
 		var map = this.maps[this.api];
 		var pt = point.toProprietary(this.api);
-		// map.centerAndZoom(pt, zoom); 
+		map.centerAndZoom(pt, zoom); 
 	},
 	
 	addMarker: function(marker, old) {
-		// var map = this.maps[this.api];
-		// var pin = marker.toProprietary(this.api);
-		// map.addLayer(pin);
-		// this.features.push(pin);
-		// return pin;
+		var map = this.maps[this.api];
+		var pin = marker.toProprietary(this.api);
+        map.graphics.add(pin);
+        return pin;
 	},
 
 	removeMarker: function(marker) {
@@ -107,11 +110,12 @@ Mapstraction: {
 	},
 
 	addPolyline: function(polyline, old) {
-		// var map = this.maps[this.api];
-		// polyline = polyline.toProprietary(this.api);
-		// map.addLayer(polyline);
-		// this.features.push(polyline);
-		// return polyline;
+		var map = this.maps[this.api];
+		polyline = polyline.toProprietary(this.api);
+        map.graphics.add(polyline);
+
+		this.features.push(polyline);
+		return polyline;
 	},
 
 	removePolyline: function(polyline) {
@@ -121,8 +125,8 @@ Mapstraction: {
 
 	getCenter: function() {
 		var map = this.maps[this.api];
-		var pt = map.getCenter();
-		return new mxn.LatLonPoint(pt.lat, pt.lng);
+		var pt = esri.geometry.webMercatorToGeographic(map.extent.getCenter());
+		return new mxn.LatLonPoint(pt.y, pt.x);
 	},
 
 	setCenter: function(point, options) {
@@ -133,7 +137,7 @@ Mapstraction: {
 
 	setZoom: function(zoom) {
 		var map = this.maps[this.api];
-		map.centerAndZoom(map.getCenter().toProprietary(this.api), zoom);
+		map.centerAndZoom(map.extent.getCenter(), zoom);
 	},
 	
 	getZoom: function() {
@@ -150,34 +154,30 @@ Mapstraction: {
 	},
 
 	setMapType: function(type) {
-		// switch(type) {
-		// 	case mxn.Mapstraction.ROAD:
-		// 		this.addTileLayer('http://otile{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png', {
-		// 			name: "Roads",
-		// 			attribution: 'Tiles Courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png">',
-		// 			subdomains: [1,2,3,4]
-		// 		});
-		// 		this.currentMapType = mxn.Mapstraction.ROAD;
-		// 		break;
-		// 	case mxn.Mapstraction.SATELLITE:
-		// 		this.addTileLayer('http://oatile{s}.mqcdn.com/naip/{z}/{x}/{y}.jpg', {
-		// 			name: "Satellite",
-		// 			attribution: 'Tiles Courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png">',
-		// 			subdomains: [1,2,3,4]
-		// 		});
-		// 		this.currentMapType = mxn.Mapstraction.SATELLITE;
-		// 		break;
-		// 	case mxn.Mapstraction.HYBRID:
-		// 		throw 'Not implemented';
-		// 	default:
-		// 		this.addTileLayer('http://otile{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png', {
-		// 			name: "Roads",
-		// 			attribution: 'Tiles Courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a> <img src="http://developer.mapquest.com/content/osm/mq_logo.png">',
-		// 			subdomains: [1,2,3,4]
-		// 		});
-		// 		this.currentMapType = mxn.Mapstraction.ROAD;
-		// }
-	},
+		var map = this.maps[this.api];
+		// map.removeAllLayers();
+		switch(type) {
+			case mxn.Mapstraction.ROAD:
+                dojo.require("esri.layers.osm"); // this can cause a race condition
+                var basemap = new esri.layers.OpenStreetMapLayer();
+                map.addLayer(basemap);
+
+                this.currentMapType = mxn.Mapstraction.ROAD;
+                break;
+            case mxn.Mapstraction.SATELLITE:
+                var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer");
+                map.addLayer(basemap);
+
+                this.currentMapType = mxn.Mapstraction.SATELLITE;
+                break;
+            case mxn.Mapstraction.HYBRID:
+                var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer");
+                map.addLayer(basemap);
+                break;
+            default:
+                // this.setMapType(mxn.Mapstraction.ROAD);
+             }
+         },
 
 	getMapType: function() {
 		return this.currentMapType;
@@ -185,7 +185,7 @@ Mapstraction: {
 
 	getBounds: function () {
 		var map = this.maps[this.api];
-		var box = map.extent;
+		var box = esri.geometry.webMercatorToGeographic(map.extent);
 		return new mxn.BoundingBox(box.ymin, box.xmin, box.ymax, box.xmax);
 	},
 
@@ -193,7 +193,7 @@ Mapstraction: {
 		var map = this.maps[this.api];
 		var sw = bounds.getSouthWest().toProprietary(this.api);
 		var ne = bounds.getNorthEast().toProprietary(this.api);
-		var newBounds = new esri.geometry.Extent(sw.lon,sw.lat,ne.lon,ne.lat, new esri.SpatialReference({ wkid:4326 }));
+		var newBounds = new esri.geometry.Extent(sw.x,sw.y,ne.x,ne.y);
 		map.setExtent(newBounds); 
 	},
 
@@ -248,7 +248,7 @@ Mapstraction: {
 LatLonPoint: {
 	
 	toProprietary: function() {
-		return new esri.geometry.Point(this.lon, this.lat, new esri.SpatialReference({ wkid: 4326 }));
+		return esri.geometry.geographicToWebMercator( new esri.geometry.Point(this.lon, this.lat, new esri.SpatialReference({ wkid: 4326 })));
 	},
 
 	fromProprietary: function(point) {
@@ -262,42 +262,27 @@ Marker: {
 	
 	toProprietary: function() {
 		var me = this;
-		var thisIcon = L.Icon;
-		if (me.iconUrl) {
-			thisIcon = thisIcon.extend({
-				iconUrl: me.iconUrl
-			});
-		}
+        var thisIcon = new esri.symbol.PictureMarkerSymbol(this.iconUrl,25,25);
+
 		if (me.iconSize) {
-			thisIcon = thisIcon.extend({
-				iconSize: new L.Point(me.iconSize[0], me.iconSize[1])
-			});
+            thisIcon.setWidth(me.iconSize[0]);
+            thisIcon.setHeight(me.iconSize[1]);
 		}
 		if (me.iconAnchor) {
-			thisIcon = thisIcon.extend({
-				iconAnchor: new L.Point(me.iconAnchor[0], me.iconAnchor[1])
-			});
+            thisIcon.setOffset(me.iconAnchor[0], me.iconAnchor[1]);
 		}
-		if (me.iconShadowUrl) {
-			thisIcon = thisIcon.extend({
-				shadowUrl: me.iconShadowUrl
-			});
-		}
-		if (me.iconShadowSize) {
-			thisIcon = thisIcon.extend({
-				shadowSize: new L.Point(me.iconShadowSize[0], me.iconShadowSize[1])
-			});
-		}
-		var iconObj = new thisIcon();
-		var marker = new L.Marker(
-			this.location.toProprietary('leaflet'),
-			{ icon: iconObj }
-		);
-		(function(me, marker) {
-			marker.on("click", function (e) {
-				me.click.fire();
-			});
-		})(me, marker);
+		// if (me.iconShadowUrl) {
+		// 	thisIcon = thisIcon.extend({
+		// 		shadowUrl: me.iconShadowUrl
+		// 	});
+		// }
+		// if (me.iconShadowSize) {
+		// 	thisIcon = thisIcon.extend({
+		// 		shadowSize: new L.Point(me.iconShadowSize[0], me.iconShadowSize[1])
+		// 	});
+		// }
+
+        var marker = new esri.Graphic(this.location.toProprietary(this.api),thisIcon);
 		return marker;
 	},
 
@@ -342,39 +327,41 @@ Marker: {
 Polyline: {
 
 	toProprietary: function() {
-		var points = [];
-		for (var i = 0,  length = this.points.length ; i< length; i++){
-			points.push(this.points[i].toProprietary('leaflet'));
-		}
+        var points = []
+            , p = null
+            , path = null
+            , fill = null;
+        var style = new esri.symbol.SimpleLineSymbol(esri.symbol.SimpleLineSymbol.STYLE_SOLID, this.fillColor || "#FFFFFF", this.width || 3);
+        for (var i = 0,  length = this.points.length ; i < length; i++){
+            p = this.points[i].toProprietary(this.api);
+            points.push([p.x, p.y]);
+        }
+        if (this.closed) {
+            path = new esri.geometry.Polygon(new esri.SpatialReference({wkid:4326}));
+            style = new esri.symbol.SimpleFillSymbol(esri.symbol.SimpleFillSymbol.STYLE_SOLID, style, this.fillColor || "#FFFFFF");
+            path.addRing(points)
+        } else {
+            path = new esri.geometry.Polyline(new esri.SpatialReference({wkid:4326}));
+            path.addPath(points)
+        }
 
-		var polyOptions = {
-			color: this.color || '#000000',
-			opacity: this.opacity || 1.0, 
-			weight: this.width || 3,
-			fillColor: this.fillColor || '#000000'
-		};
-
-		if (this.closed) {
-			return new L.Polygon(points, polyOptions);
-		} else {
-			return new L.Polyline(points, polyOptions);
-		}
+        return new esri.Graphic(path,style);
 	},
 	
 	show: function() {
-		this.map.addLayer(this.proprietary_polyline);
+		this.map.add(this.proprietary_polyline);
 	},
 
 	hide: function() {
-		this.map.removeLayer(this.proprietary_polyline);
+		this.map.remote(this.proprietary_polyline);
 	},
 	
 	isHidden: function() {
-		if (this.map.hasLayer(this.proprietary_polyline)) {
-			return false;
-		} else {
-			return true;
-		}
+		// if (this.map.hasLayer(this.proprietary_polyline)) {
+		// 	return false;
+		// } else {
+		// 	return true;
+		// }
 	}
 }
 

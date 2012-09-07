@@ -401,7 +401,7 @@ Mapstraction.prototype.swap = function(element,api) {
 	this.api = api;
 	this.onload[api] = [];
 	
-	if (this.maps[this.api] === undefined) {	
+	if (!this.maps.hasOwnProperty(this.api)) {
 		init.apply(this);
 
 		for (var i = 0; i < this.markers.length; i++) {
@@ -1503,7 +1503,6 @@ Marker.prototype.addData = function(options){
 					break;
 				case 'hover':
 					this.setHover(options.hover);
-					this.setHoverIcon(options.hoverIcon);
 					break;
 				case 'hoverIcon':
 					this.setHoverIcon(options.hoverIcon);

@@ -149,13 +149,10 @@ Mapstraction: {
 	},
 	
 	getCenter: function() {
-		var point;
 		var map = this.maps[this.api];
-		// Get the existing options.
-		var options = map.getOptions();
-		point = new mxn.LatLonPoint(options.center.latitude,options.center.longitude);
+		var center = map.getCenter();
 		
-		return point;
+		return new mxn.LatLonPoint(center.latitude, center.longitude);
 	},
 
 	setCenter: function(point, options) {
@@ -359,7 +356,7 @@ Marker: {
 			Microsoft.Maps.Events.addHandler(mmarker, event_action, function() {
 				mmarker.mapstraction_marker.openBubble();
 			});
-			Microsoft.Maps.Events.addHandler(map, 'viewchange', function () {
+			Microsoft.Maps.Events.addHandler(this.map, 'viewchange', function () {
 				mmarker.mapstraction_marker.closeBubble();
 			});
 		}
@@ -410,18 +407,18 @@ Polyline: {
 			points.push(this.points[i].toProprietary(this.api));
 		}
 		
-		var strokeColor = Microsoft.Maps.Color.fromHex(this.color);
+		var strokeColor = Microsoft.Maps.Color.fromHex(this.color || '#000000');
 		strokeColor.a = this.opacity * 255;
-		var fillColor = Microsoft.Maps.Color.fromHex(this.fillColor);
+		var fillColor = Microsoft.Maps.Color.fromHex(this.fillColor || '#000000');
 		fillColor.a = this.fillOpacity * 255;
 		
 		var polyOptions = {
-			strokeColor: _strokeColor,
+			strokeColor: strokeColor,
 			strokeThickness: this.width
 		};
 
 		if (this.closed) {
-			polyOptions.fillColor = _fillColor;
+			polyOptions.fillColor = fillColor;
 			points.push(this.points[0].toProprietary(this.api));
 			return new Microsoft.Maps.Polygon(points, polyOptions);
 		}

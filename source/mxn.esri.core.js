@@ -3,27 +3,47 @@ mxn.register('esri', {
 Mapstraction: {
 	
 	init: function(element, api) {
-		var me = this;
+		var me = this, p;
 		dojo.require("esri.map");
 		dojo.require("esri.layers.FeatureLayer");
 
-		var map = new esri.Map(element.id, {
+		var esriMap = new esri.Map(element.id, {
 			wrapAround180: true
 		});
-
-        dojo.connect("map", "onLoad",function() {
-            var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer");
-            m.addLayer(basemap);
-
-        });
+		//var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer");
+    //esriMap.addLayer(basemap);
+		console.log("esri map made");
+    dojo.connect(esriMap, "onLoad",function() {
+				console.log("esri map loaded");
+				dojo.connect(esriMap, "onClick", function(evt){
+					console.log("map clicked");
+					me.click.fire({location: new mxn.LatLonPoint(evt.mapPoint.y, evt.mapPoint.x)});
+				});
+				dojo.connect(esriMap, "onMouseDown", function(evt){
+					console.log("esrimap mouse down");
+					//esriMap.onPanStart.apply(esriMap.extent, evt.mapPoint);
+				});
+				dojo.connect(esriMap, "onMouseDragStart", function(evt){
+					console.log("mouse drag started");
+					//esriMap.onPanStart.apply(esriMap.extent, evt.mapPoint);
+				})
+				dojo.connect(esriMap, "onMouseDragEnd", function(evt){
+					console.log("mouse drag ended");
+					//esriMap.centerAt(evt.mapPoint);
+					me.endPan.fire();
+				})
+        ////var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer");
+        ////map.addLayer(basemap);
+    });
 
 
 		// map.addEventListener('moveend', function(){
 		// 	me.endPan.fire();
 		// }); 
-		// map.on("click", function(e) {
+		//map.on("click", function(e) {
+		//	console.log("map clicked");
 		// 	me.click.fire({'location': new mxn.LatLonPoint(e.latlng.lat, e.latlng.lng)});
-		// });
+		 //});
 		// map.on("popupopen", function(e) {
 		// 	if (e.popup._source.mxnMarker) {
 		// 		e.popup._source.mxnMarker.openInfoBubble.fire({'bubbleContainer': e.popup._container});
@@ -34,12 +54,16 @@ Mapstraction: {
 		// 		e.popup._source.mxnMarker.closeInfoBubble.fire({'bubbleContainer': e.popup._container});
 		// 	}
 		// });
+		
 		this.layers = {};
 		this.features = [];
-		this.maps[api] = map;
+		this.maps[api] = esriMap;
 		this.setMapType();
-		this.currentMapType = mxn.Mapstraction.ROAD;
+		//this.currentMapType = mxn.Mapstraction.SATELLITE;
 		this.loaded[api] = true;
+		for(p in this.options){
+			console.log( p + ": " + this.options[p]);
+		}
 
 	},
 	
@@ -146,36 +170,52 @@ Mapstraction: {
 	},
 
 	getZoomLevelForBoundingBox: function(bbox) {
-		var map = this.maps[this.api];
-		var bounds = new L.LatLngBounds(
-			bbox.getSouthWest().toProprietary(this.api),
-			bbox.getNorthEast().toProprietary(this.api));
-		return map.getBoundsZoom(bounds);
+		//var map = this.maps[this.api];
+		//var bounds = new L.LatLngBounds(
+			//bbox.getSouthWest().toProprietary(this.api),
+			//bbox.getNorthEast().toProprietary(this.api));
+		//return map.getBoundsZoom(bounds);
 	},
 
 	setMapType: function(type) {
-		var map = this.maps[this.api];
+		var map = this.maps[this.api], baseMapLayer, baseMapUrl, i;
+		console.log("esriMap: " + map);
+		if (! map){
+			return;
+		}
+		
+		for (i = 0; i < map.layerIds.length; i++){
+			if (map.getLayer(map.layerIds[i]) instanceof esri.layers.ArcGISTiledMapServiceLayer){
+				baseMapLayer = map.getLayer(map.layerIds[i]);
+				break;
+			}
+		}
+		
+		if (baseMapLayer){
+			map.removeLayer(baseMapLayer);
+		}
 		// map.removeAllLayers();
 		switch(type) {
 			case mxn.Mapstraction.ROAD:
-                dojo.require("esri.layers.osm"); // this can cause a race condition
-                var basemap = new esri.layers.OpenStreetMapLayer();
-                map.addLayer(basemap);
-
+                //dojo.require("esri.layers.osm"); // this can cause a race condition
+                //var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer");
+                //map.addLayer(basemap,0);
+								map.addLayer(new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer"),0);
                 this.currentMapType = mxn.Mapstraction.ROAD;
                 break;
             case mxn.Mapstraction.SATELLITE:
-                var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer");
-                map.addLayer(basemap);
-
+                //var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer");
+                //map.addLayer(basemap,0);
+								map.addLayer(new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"),0);
                 this.currentMapType = mxn.Mapstraction.SATELLITE;
                 break;
             case mxn.Mapstraction.HYBRID:
-                var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer");
-                map.addLayer(basemap);
+                //var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer");
+                //map.addLayer(basemap);
+                map.addLayer(new esri.layers.ArcGISTiledMapServiceLayer("http://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer"),0);
                 break;
             default:
-                // this.setMapType(mxn.Mapstraction.ROAD);
+                this.setMapType(mxn.Mapstraction.ROAD);
              }
          },
 
@@ -330,9 +370,10 @@ Polyline: {
         var points = []
             , p = null
             , path = null
-            , fill = null;
+            , fill = null,
+            i;
         var style = new esri.symbol.SimpleLineSymbol(esri.symbol.SimpleLineSymbol.STYLE_SOLID, this.fillColor || "#FFFFFF", this.width || 3);
-        for (var i = 0,  length = this.points.length ; i < length; i++){
+        for (i = 0,  length = this.points.length ; i < length; i+=1){
             p = this.points[i].toProprietary(this.api);
             points.push([p.x, p.y]);
         }
